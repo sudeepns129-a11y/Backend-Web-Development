@@ -11,10 +11,29 @@ exports.create = async ({ authorId, title, body }) => repo.insert({ authorId, ti
  * Implement these guards IN ORDER, each throwing an AppError, before any write:
  *   1. The post must exist          -> AppError('Post not found', 404)
  *   2. Only the author may edit it  -> AppError('You can only edit your own post', 403)
- *   3. It must be within the window  -> AppError('Post can no longer be edited', 403)
- *      (now - post.createdAt must be <= EDIT_WINDOW_MS)
+ *   3. It must be within the window -> AppError('Post can no longer be edited', 403)
  * Only when all guards pass: return repo.update(postId, changes).
  */
 exports.editPost = async (postId, userId, changes) => {
-  throw new AppError('editPost is not implemented yet', 501);
+  // 1. Check if the post exists
+  const post = await repo.findById(postId);
+
+  if (!post) {
+    throw new AppError('Post not found', 404);
+  }
+
+  // 2. Check if the user is the author
+  if (post.authorId !== userId) {
+    throw new AppError('You can only edit your own post', 403);
+  }
+
+  // 3. Check if the post is within 24 hours
+  const ageMs = Date.now() - post.createdAt;
+
+  if (ageMs > EDIT_WINDOW_MS) {
+    throw new AppError('Post can no longer be edited', 403);
+  }
+
+  // 4. Update the post
+  return repo.update(postId, changes);
 };
