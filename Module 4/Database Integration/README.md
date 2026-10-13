@@ -1,21 +1,37 @@
-# Database Integration Assignment Starter
+# Database Integration Assignment
 
-Replace the in-memory repository implementation with PostgreSQL through Prisma. The starter already uses an asynchronous repository contract so services and controllers can remain stable during the swap.
+This assignment replaces the in-memory post repository with Prisma backed by PostgreSQL while keeping the HTTP contract stable.
 
-## Run
+## Run locally
 
 ```bash
 npm install
+cp .env.example .env
+npm run prisma:format
+npm run prisma:validate
+npm run prisma:migrate
+npm run prisma:generate
 npm start
 ```
 
-## Prisma preparation
+## Environment setup
 
-Copy `.env.example` to `.env` with a local PostgreSQL URL. The schema is intentionally incomplete for the assignment.
+Set `DATABASE_URL` in `.env` to a local PostgreSQL database, for example:
 
-```bash
-npm run prisma:format
-npm run prisma:validate
+```env
+DATABASE_URL="postgresql://postgres:postgres@localhost:5432/community_dev?schema=public"
+PORT=3000
 ```
 
-Read the platform question before editing. Do not add platform-only `question.md`, answer files, tests, or specs to this repository. Never commit `.env` or real credentials.
+Never commit `.env` or real credentials. `.env.example` contains placeholders only.
+
+## Architecture
+
+- Controllers call services.
+- Services contain business validation.
+- Repositories own Prisma database access.
+- The shared client lives in `src/db/prisma.js`.
+
+## Notes
+
+The API still exposes the same `GET /posts`, `GET /posts/:id`, `POST /posts`, `PATCH /posts/:id`, and `DELETE /posts/:id` endpoints. The `Post` model uses a required `authorId` relation to a `User`, and the repository layer handles not-found, duplicate, invalid foreign key, and unexpected database errors without leaking Prisma internals.
