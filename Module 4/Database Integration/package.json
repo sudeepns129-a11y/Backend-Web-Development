@@ -4,9 +4,11 @@
   "private": true,
   "scripts": {
     "start": "node src/app.js",
+    "test": "node --test",
     "prisma:format": "prisma format",
     "prisma:validate": "prisma validate",
-    "prisma:generate": "prisma generate"
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "prisma migrate dev --name database_integration"
   },
   "dependencies": {
     "@prisma/client": "^6.9.0",
