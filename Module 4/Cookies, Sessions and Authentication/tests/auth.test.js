@@ -76,6 +76,77 @@ test('unexpected repository errors return a controlled 500 response', async () =
   }
 });
 
+test('session lifecycle supports login, me, tampering, logout, and replay protection', async () => {
+  await resetDatabase();
+  await request(app).post('/auth/register').send({ name: 'Sam', email: 'sam@example.com', password: 'correct horse battery staple' });
+  const agent = request.agent(app);
+
+  const login = await agent.post('/auth/login').send({ email: 'sam@example.com', password: 'correct horse battery staple' });
+  assert.equal(login.status, 200);
+  const setCookie = login.headers['set-cookie'];
+  assert.ok(setCookie);
+  assert.ok(setCookie.some(cookie => cookie.startsWith('sid=')));
+  assert.ok(setCookie.some(cookie => cookie.includes('HttpOnly')));
+  assert.ok(setCookie.some(cookie => /SameSite=Lax/i.test(cookie)));
+  const oldCookie = setCookie.find(cookie => cookie.startsWith('sid=')).split(';')[0];
+  const signedValue = decodeURIComponent(oldCookie.slice('sid='.length));
+  const cookieSignature = require('cookie-signature');
+  const sessionId = cookieSignature.unsign(signedValue.startsWith('s:') ? signedValue.slice(2) : signedValue, process.env.COOKIE_SECRET);
+  assert.ok(sessionId);
+  const sessionStore = require('../src/session/sessionStore');
+  assert.ok(sessionStore.get(sessionId));
+  assert.equal(sessionStore.get(sessionId).userId, login.body.data.id);
+
+  const me = await agent.get('/auth/me');
+  assert.equal(me.status, 200);
+  assert.deepEqual(me.body.data, { id: me.body.data.id, name: 'Sam', email: 'sam@example.com' });
+
+  const missing = await request(app).get('/auth/me');
+  assert.equal(missing.status, 401);
+  assert.deepEqual(missing.body, { error: { code: 'AUTH_REQUIRED', message: 'Authentication required' } });
+
+  const tampered = await request(app).get('/auth/me').set('Cookie', 'sid=invalid-signature');
+  assert.equal(tampered.status, 401);
+  assert.deepEqual(tampered.body, missing.body);
+
+  const unknown = await request(app).get('/auth/me').set('Cookie', 'sid=s%3Aunknown.invalidsignature');
+  assert.equal(unknown.status, 401);
+
+  const logout = await agent.post('/auth/logout');
+  assert.equal(logout.status, 204);
+  assert.equal(logout.text, '');
+  const cleared = logout.headers['set-cookie'];
+  assert.ok(cleared && cleared.some(cookie => /^sid=/i.test(cookie)));
+  assert.ok(cleared && cleared.some(cookie => /Expires=/i.test(cookie)));
+
+  const replay = await request(app).get('/auth/me').set('Cookie', oldCookie);
+  assert.equal(replay.status, 401);
+  const repeated = await agent.post('/auth/logout');
+  assert.equal(repeated.status, 204);
+});
+
+test('cookie configuration is secure in production and local in development', () => {
+  const { getCookieConfig } = require('../src/config/cookieConfig');
+  process.env.COOKIE_SECURE = 'true';
+  assert.equal(getCookieConfig().secure, true);
+  process.env.COOKIE_SECURE = 'false';
+  assert.equal(getCookieConfig().secure, false);
+});
+
+test('expired session records are rejected and removed', () => {
+  const sessionStore = require('../src/session/sessionStore');
+  const originalNow = Date.now;
+  Date.now = () => 1000000;
+  try {
+    const sessionId = sessionStore.create(123);
+    assert.ok(sessionStore.get(sessionId));
+    Date.now = () => 5000000;
+    assert.equal(sessionStore.get(sessionId), null);
+  } finally {
+    Date.now = originalNow;
+  }
+});
+
 test.after(async () => {
   await prisma.$disconnect();
 });
