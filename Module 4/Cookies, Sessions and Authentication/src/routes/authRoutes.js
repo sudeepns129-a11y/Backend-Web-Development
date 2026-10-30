@@ -1,20 +1,17 @@
 const express = require('express');
+const authController = require('../controllers/authController');
 
 const router = express.Router();
 
-router.post('/login', async (req, res, next) => {
-  // TODO: validate credentials, create a server session, and set signed `sid` cookie.
-  res.status(501).json({ error: { code: 'NOT_IMPLEMENTED', message: 'Implement login' } });
-});
+router.post('/register', authController.register);
+router.post('/login', authController.login);
 
 router.get('/me', async (req, res, next) => {
-  // TODO: resolve signed cookie through the server-side session store.
-  res.status(501).json({ error: { code: 'NOT_IMPLEMENTED', message: 'Implement protected identity' } });
+  res.status(501).json({ error: { code: 'NOT_IMPLEMENTED', message: 'Not implemented' } });
 });
 
 router.post('/logout', async (req, res, next) => {
-  // TODO: destroy server session and clear cookie using matching options.
-  res.status(501).json({ error: { code: 'NOT_IMPLEMENTED', message: 'Implement logout' } });
+  res.status(501).json({ error: { code: 'NOT_IMPLEMENTED', message: 'Not implemented' } });
 });
 
 module.exports = router;

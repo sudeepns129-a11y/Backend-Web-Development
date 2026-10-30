@@ -13,6 +13,12 @@ Set `COOKIE_SECRET` in `.env` to at least 32 random characters. Keep `COOKIE_SEC
 
 Seeded demo account: `sam@example.com` / `SessionDemo!48`.
 
+## Authentication API
+
+- `POST /auth/register` creates a user with a normalized lowercase email and an asynchronously generated bcrypt password hash.
+- `POST /auth/login` validates credentials and returns public user fields only. Unknown emails and incorrect passwords return the same `401 INVALID_CREDENTIALS` response.
+- Set `BCRYPT_COST` in `.env` to control the bcrypt work factor (default: 12).
+
 ## Implement
 
 Complete the TODOs in:
